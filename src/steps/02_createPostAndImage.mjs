@@ -11,10 +11,16 @@
 import { getNIMTextClient, getNIMTextModel } from '../lib/nimTextClient.mjs';
 import logger from '../lib/logger.mjs';
 
-const SYSTEM_PROMPT = `You are a senior LinkedIn content strategist and copywriter specializing in FinTech, Data Analytics, and Career Growth content. 
+const SYSTEM_PROMPT = `You are a senior LinkedIn content strategist and copywriter specializing in FinTech, AI Automation, and Career Growth. 
 Your task is to:
-1. Polish the given LinkedIn draft to be compelling, professional, and engagement-optimized.
+1. Polish the given LinkedIn draft into a high-engagement post.
 2. Generate a cinematic, photorealistic FLUX image prompt.
+
+CRITICAL FORMATTING for "polishedPost":
+- LINE 1: Must be a powerful, attention-grabbing hook.
+- SPACING: Leave exactly one blank line after the hook.
+- PARAGRAPHS: Every paragraph should be exactly 2 sentences long, followed by a blank line. This creates a "breathable" and readable LinkedIn layout.
+- HASHTAGS: End the post with a diverse set of 5-8 relevant hashtags (e.g., #FinTech #AI #Automation #PersonalBranding #CareerGrowth #DataAnalytics #Productivity).
 
 IMPORTANT for output format:
 - Respond ONLY with a single, flat JSON object.
