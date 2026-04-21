@@ -1,0 +1,509 @@
+{
+  "name": "LinkedIn B2B Posts Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -64,
+        80
+      ],
+      "id": "c16d365b-694a-476b-8428-f52e8845dcd1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro-ultra/predictions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_REPLICATE_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "wait"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"prompt\": \"{{ $json.message.content.image_prompt }}\",\n    \"aspect_ratio\": \"16:9\",\n    \"raw\": true,\n    \"output_format\": \"jpg\",\n    \"safety_tolerance\": 6\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        80
+      ],
+      "id": "3429adee-6d48-49c4-8997-5fab16ba4761",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1088,
+        80
+      ],
+      "id": "ccae83b4-df65-46b1-b1ac-34fa2349b47c",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "person": "kOiFxbm4Gy",
+        "text": "={{ $('Create post and image').item.json.message.content.new_post_text }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        0
+      ],
+      "id": "d4a7da84-3e3d-42a5-a893-b1bbae5de34f",
+      "name": "LinkedIn",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "vs4RM2FqRWs6zfRd",
+          "name": "LinkedIn account Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Ckkujg7LjpKTTkbqWbetECdXJ4LqA0ufKYb6FzAMvEY",
+          "mode": "list",
+          "cachedResultName": "LinkedIn_Posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ckkujg7LjpKTTkbqWbetECdXJ4LqA0ufKYb6FzAMvEY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Post_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ckkujg7LjpKTTkbqWbetECdXJ4LqA0ufKYb6FzAMvEY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Posted",
+              "lookupValue": "No"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        80
+      ],
+      "id": "7513d088-321f-45e1-8447-4177f6003871",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odXscePyp2a61eew",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code node (Mode: Run Once for All Items)\n * Input can be:\n *  1) Many items: [{json:{row_number,...}}, {json:{...}}, ...]\n *  2) One item containing the whole array in json or in a field (e.g. json.data or json.body)\n *  3) One item containing a JSON string of the array\n * Output:\n *  [{ json: <the next-due post object> }]\n */\n\nfunction normalizeArray(inputItems) {\n  // Case A: already one item per row\n  const looksLikeRows = inputItems.length > 1 && inputItems.every(i => i.json && typeof i.json === 'object');\n  if (looksLikeRows) return inputItems.map(i => i.json);\n\n  // Case B: single item with the array living somewhere\n  if (inputItems.length === 1) {\n    const payload = inputItems[0]?.json ?? inputItems[0];\n\n    // Common wrappers (adjust if your field name differs)\n    const candidates = [\n      payload,\n      payload?.data,\n      payload?.body,\n      payload?.rows,\n      payload?.value,\n    ].filter(Boolean);\n\n    for (const c of candidates) {\n      if (Array.isArray(c)) return c;\n      if (typeof c === 'string') {\n        try {\n          const parsed = JSON.parse(c);\n          if (Array.isArray(parsed)) return parsed;\n        } catch {}\n      }\n    }\n\n    // If the single item itself already *is* a row (not an array),\n    // treat it as a 1-row array\n    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {\n      // Heuristic: if it has \"Post\" or \"Post_Number\", it’s a row\n      if ('Post' in payload || 'Post_Number' in payload) return [payload];\n    }\n  }\n\n  throw new Error('Could not find an array of rows in input.');\n}\n\nfunction normalizePosted(v) {\n  if (typeof v === 'boolean') return v ? 'Yes' : 'No';\n  if (v == null) return 'No';\n  return String(v).trim().toLowerCase() === 'no' ? 'No' : 'Yes';\n}\n\nfunction toNum(v, fallback = Number.MAX_SAFE_INTEGER) {\n  if (v == null) return fallback;\n  const n = Number(v);\n  return Number.isFinite(n) ? n : fallback;\n}\n\nconst rows = normalizeArray($input.all());\n\n// Filter to not-yet-posted\nconst unposted = rows.filter(r => normalizePosted(r.Posted) === 'No');\n\n// If none left, you can choose: throw, or return nothing.\n// Here we throw to make it visible upstream.\nif (unposted.length === 0) {\n  throw new Error('No due posts found (all are posted).');\n}\n\n// Sort by Post_Number asc, then row_number asc\nunposted.sort((a, b) => {\n  const aNum = toNum(a.Post_Number);\n  const bNum = toNum(b.Post_Number);\n  if (aNum !== bNum) return aNum - bNum;\n\n  const aRow = toNum(a.row_number);\n  const bRow = toNum(b.row_number);\n  return aRow - bRow;\n});\n\n// Pick the most due post\nconst nextDue = unposted[0];\n\n// Output exactly one item\nreturn [{ json: nextDue }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        80
+      ],
+      "id": "b8054955-7148-4fb7-86a2-8ab8447cc871",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=This is the post provided:\n{{ $('Create post and image').item.json.message.content.new_post_text }}"
+            },
+            {
+              "content": "#Role: You are an expert for writing interesting titles for LinkedIn Posts and summarizing it into 3 bullet points. \n\n#Task: You have two tasks:\n1) Your first task is to look at the post provided and to create a matching title for it. The title can have maximum 5 to 6 words. The title must represent the entire post pretty well.\n\n2) Your second task is to create three bullet points, that together with the title pretty well summarize the entire post. The bullet points can have maximum 7 to 8 words. Shorter is better. \n\n#Output format:\n\nAlways output the same valid JSON structure and always use the same JSON key names as shown below:\n\n{\n\"post_title\": \"...\",\n\"bullet_1\": \"...\",\n\"bullet_2\": \"...\",\n\"bullet_3\": \"...\"\n}\n\n#Important:\n-never make up information, just use what is provided in the original post\n-Never change the JSON structure and key names",
+              "role": "system"
+            },
+            {
+              "content": "Always output the same valid JSON structure and always use the same JSON key names as shown below:\n\n{\n\"post_title\": \"...\",\n\"bullet_1\": \"...\",\n\"bullet_2\": \"...\",\n\"bullet_3\": \"...\"\n}",
+              "role": "assistant"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1296,
+        80
+      ],
+      "id": "7af4e90c-a1c8-4ca1-8511-a275cb5f6d23",
+      "name": "Create title and bullet points",
+      "credentials": {
+        "openAiApi": {
+          "id": "rGJwlzov8yO2FtH8",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=This is the post provided:\n{{ $json.Post }}"
+            },
+            {
+              "content": "#Role: You are an expert for writing interesting and valuable LinkedIn Posts. \n\n#Task: You have two tasks:\n1) Your first task is to look at the post provided and to just give it a slight polish and correct english writing errors. Keep the wording and storyline close to the original and only change that if it is bad english or hard to understand what I mean. If you only get some bullet points or a ruff idea provided, turn it into a full LinkedIn post. At the end of each post add a suitable slight CTA like that: \"If you want to see how AI automation could work in your business, DM me.\"\n\n2) Your second task is to create an image prompt for an image perfectly representing the idea and story of the post. Aim for great photo realistic images that catch attention, perfectly represent what is expressed in the post and also are nice to look at. If anyhow possible try to keep the colors in the blue and dark blue/black spectrum as this are my corporate colors. \n\n#Output format:\n\nAlways output the same valid JSON structure and always use the same JSON key names as shown below:\n\n{\n\"new_post_text\": \"...\",\n\"image_prompt\": \"...\"\n}\n\n#Important:\n-never make up information, just use what is provided in the original post\n-Never change the JSON structure and key names\n-Never use em dashes. Use commas or a normal minus instead.\n-Don't use Markdown formatting as it doesn't work on LinkedIn",
+              "role": "system"
+            },
+            {
+              "content": "Always output the same valid JSON structure and always use the same JSON key names as shown below:\n\n{\n\"new_post_text\": \"...\",\n\"image_prompt\": \"...\"\n}",
+              "role": "assistant"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        560,
+        80
+      ],
+      "id": "cf3b7e09-fc24-4e1a-bd31-e30da31cf233",
+      "name": "Create post and image",
+      "credentials": {
+        "openAiApi": {
+          "id": "rGJwlzov8yO2FtH8",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://178.156.173.117:5007/generate-post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"image_url\": \"{{ $('HTTP Request3').item.json.output }}\",\n  \"title\": \"{{ $json.message.content.post_title }}\",\n  \"bullet1\": \"{{ $json.message.content.bullet_1 }}\",\n  \"bullet2\": \"{{ $json.message.content.bullet_2 }}\",\n  \"bullet3\": \"{{ $json.message.content.bullet_3 }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1648,
+        80
+      ],
+      "id": "290e8c71-b831-480b-b2e4-1f655b19efcf",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.download_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1856,
+        80
+      ],
+      "id": "818aa34d-2f89-4b28-b7e0-bc46d42ce7bf",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "postAs": "organization",
+        "organization": "107176079",
+        "text": "={{ $('Create post and image').item.json.message.content.new_post_text }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        192
+      ],
+      "id": "9d4d7302-1f5b-459b-8b41-d2f7cbe176fe",
+      "name": "LinkedIn1",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "ckuudU061fc5tCVa",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Ckkujg7LjpKTTkbqWbetECdXJ4LqA0ufKYb6FzAMvEY",
+          "mode": "list",
+          "cachedResultName": "LinkedIn_Posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ckkujg7LjpKTTkbqWbetECdXJ4LqA0ufKYb6FzAMvEY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Post_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ckkujg7LjpKTTkbqWbetECdXJ4LqA0ufKYb6FzAMvEY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Code').item.json.row_number }}",
+            "Posted": "Yes"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Post",
+              "displayName": "Post",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Post_Number",
+              "displayName": "Post_Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Posted",
+              "displayName": "Posted",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2256,
+        0
+      ],
+      "id": "60768625-5bd9-4b11-927a-e0024381619a",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odXscePyp2a61eew",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Create title and bullet points",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Create post and image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create post and image": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create title and bullet points": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LinkedIn1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "259d93d4-4fe4-4852-8d65-79e3f9581bf7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5a314c34cd2969f2f635552e9a7276ffa3f38302951d69d2e77b9b7a3b6db7f6"
+  },
+  "id": "rLID75ongUVkdkM5",
+  "tags": []
+}

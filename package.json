@@ -1,0 +1,29 @@
+{
+  "name": "linkedin-post-automation",
+  "version": "1.0.0",
+  "description": "Automated LinkedIn content pipeline: Google Sheets → NVIDIA NIM → FLUX → sharp branding → LinkedIn publish",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "run-once": "node src/pipeline.mjs",
+    "get-linkedin-token": "node src/scripts/getLinkedInToken.mjs",
+    "dev": "node --watch src/pipeline.mjs",
+    "desktop": "electron .",
+    "desktop:dev": "electron . --dev",
+    "package": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "googleapis": "^144.0.0",
+    "node-cron": "^3.0.3",
+    "openai": "^4.94.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "electron": "^34.5.8",
+    "electron-builder": "^26.8.1"
+  }
+}

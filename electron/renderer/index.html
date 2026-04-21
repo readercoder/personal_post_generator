@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'" />
+  <title>LinkedIn Post Automation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-logo">in</div>
+    <span class="header-title">LinkedIn Post Automation</span>
+    <span class="header-badge" id="header-badge">Ready</span>
+  </header>
+
+  <!-- ── Control bar ────────────────────────────────────────────────────── -->
+  <div class="control-bar">
+    <button class="publish-btn" id="publish-btn">
+      <span class="spinner"></span>
+      <span class="btn-icon">🚀</span>
+      Publish Next Post
+    </button>
+    <span class="status-text" id="status-text">Click to fetch the next post from Google Sheets and publish it.</span>
+    <button class="clear-btn" id="clear-btn">Clear Log</button>
+  </div>
+
+  <!-- ── Step progress bar ──────────────────────────────────────────────── -->
+  <div class="steps-bar" id="steps-bar">
+    <div class="step-item" id="step-item-0">
+      <div class="step-dot" id="step-dot-0"></div>
+      <span class="step-label">Fetch</span>
+    </div>
+    <div class="step-connector" id="step-conn-0"></div>
+
+    <div class="step-item" id="step-item-1">
+      <div class="step-dot" id="step-dot-1"></div>
+      <span class="step-label">Polish</span>
+    </div>
+    <div class="step-connector" id="step-conn-1"></div>
+
+    <div class="step-item" id="step-item-2">
+      <div class="step-dot" id="step-dot-2"></div>
+      <span class="step-label">Image</span>
+    </div>
+    <div class="step-connector" id="step-conn-2"></div>
+
+    <div class="step-item" id="step-item-3">
+      <div class="step-dot" id="step-dot-3"></div>
+      <span class="step-label">Bullets</span>
+    </div>
+    <div class="step-connector" id="step-conn-3"></div>
+
+    <div class="step-item" id="step-item-4">
+      <div class="step-dot" id="step-dot-4"></div>
+      <span class="step-label">Brand</span>
+    </div>
+    <div class="step-connector" id="step-conn-4"></div>
+
+    <div class="step-item" id="step-item-5">
+      <div class="step-dot" id="step-dot-5"></div>
+      <span class="step-label">Publish</span>
+    </div>
+    <div class="step-connector" id="step-conn-5"></div>
+
+    <div class="step-item" id="step-item-6">
+      <div class="step-dot" id="step-dot-6"></div>
+      <span class="step-label">Update Sheet</span>
+    </div>
+  </div>
+
+  <!-- ── Log panel ──────────────────────────────────────────────────────── -->
+  <div class="log-wrapper">
+    <div class="log-header">
+      <div class="log-dot" id="log-dot"></div>
+      Pipeline Log
+    </div>
+    <div class="log-panel" id="log-panel">
+      <div class="log-empty" id="log-empty">No pipeline run yet. Click "Publish Next Post" to begin.</div>
+    </div>
+  </div>
+
+  <!-- ── Result banner ──────────────────────────────────────────────────── -->
+  <div class="result-banner" id="result-banner"></div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
